@@ -1022,19 +1022,74 @@ async function getAIInsight(){
 }
 
 function exportExcel(tab){
-  const wb=XLSX.utils.book_new();
-  if(tab==='bank'){
-    const rows=[['Date','Bank','Type','Amount','Description']];
-    state.bankTxns.forEach(t=>rows.push([t.date,t.bank,t.type,t.amount,t.desc]));
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Bank Transactions');
-    XLSX.writeFile(wb,'Bank_Transactions.xlsx');
-  }else{
-    const rows=[['Date','Category','Type','Amount','Description']];
-    state.expenseTxns.forEach(t=>rows.push([t.date,t.category,t.type,t.amount,t.desc]));
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Expense Transactions');
-    XLSX.writeFile(wb,'Expense_Transactions.xlsx');
+  try{
+    // Build CSV content
+    let rows,filename;
+    if(tab==='bank'){
+      rows=[['Date','Bank','Type','Amount','Description']];
+      state.bankTxns.forEach(t=>rows.push([t.date,t.bank,t.type,t.amount,t.desc||'']));
+      filename='Bank_Transactions.csv';
+    }else{
+      rows=[['Date','Category','Type','Amount','Description']];
+      state.expenseTxns.forEach(t=>rows.push([t.date,t.category,t.type,t.amount,t.desc||'']));
+      filename='Expense_Transactions.csv';
+    }
+    const csv=rows.map(r=>r.map(v=>{
+      const s=String(v==null?'':v);
+      return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;
+    }).join(',')).join('\r\n');
+
+    // Try Blob download (works on Android Chrome & most browsers)
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
+    showToast('✅ File downloaded: '+filename,'success');
+
+    // iOS Safari fallback — open in new tab so user can share/save
+    setTimeout(()=>{
+      const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+      if(isIOS){
+        showIOSExportModal(csv,filename);
+      }
+    },500);
+  }catch(err){
+    showToast('Export error: '+err.message,'error');
   }
-  showToast('Exported successfully!','success');
+}
+
+function showIOSExportModal(csv,filename){
+  // Show a modal with the data as text so iOS user can copy/share
+  let modal=document.getElementById('iosExportModal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='iosExportModal';
+    modal.className='modal-overlay';
+    modal.innerHTML=`
+      <div class="modal" style="max-width:95vw;">
+        <h3>📤 Save File on iPhone/iPad</h3>
+        <p style="font-size:.8rem;color:var(--text2);margin-bottom:10px;font-weight:600;">
+          iOS blocks auto-downloads. Tap <b>"Open File"</b> below — then tap <b>Share → Save to Files</b> to save it.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;">
+          <button id="iosOpenBtn" class="btn-confirm" style="width:100%;padding:12px;font-size:.88rem;">📂 Open File</button>
+          <button onclick="document.getElementById('iosExportModal').classList.remove('show')" class="btn-cancel" style="width:100%;padding:12px;">Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show');});
+  }
+  // Update open button each time
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const btn=document.getElementById('iosOpenBtn');
+  btn.onclick=()=>{ window.open(url,'_blank'); };
+  modal.classList.add('show');
 }
 
 function importExcel(tab,input){
