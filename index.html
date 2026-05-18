@@ -1022,74 +1022,116 @@ async function getAIInsight(){
 }
 
 function exportExcel(tab){
-  try{
-    // Build CSV content
-    let rows,filename;
-    if(tab==='bank'){
-      rows=[['Date','Bank','Type','Amount','Description']];
-      state.bankTxns.forEach(t=>rows.push([t.date,t.bank,t.type,t.amount,t.desc||'']));
-      filename='Bank_Transactions.csv';
-    }else{
-      rows=[['Date','Category','Type','Amount','Description']];
-      state.expenseTxns.forEach(t=>rows.push([t.date,t.category,t.type,t.amount,t.desc||'']));
-      filename='Expense_Transactions.csv';
-    }
-    const csv=rows.map(r=>r.map(v=>{
-      const s=String(v==null?'':v);
-      return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;
-    }).join(',')).join('\r\n');
-
-    // Try Blob download (works on Android Chrome & most browsers)
-    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;
-    a.download=filename;
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
-    showToast('✅ File downloaded: '+filename,'success');
-
-    // iOS Safari fallback — open in new tab so user can share/save
-    setTimeout(()=>{
-      const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-      if(isIOS){
-        showIOSExportModal(csv,filename);
-      }
-    },500);
-  }catch(err){
-    showToast('Export error: '+err.message,'error');
+  let rows, title;
+  if(tab==='bank'){
+    rows=[['Date','Bank','Type','Amount','Description']];
+    state.bankTxns.sort((a,b)=>a.date<b.date?1:-1).forEach(t=>rows.push([t.date,t.bank,t.type,fmtPKR(t.amount),t.desc||'—']));
+    title='🏦 Bank Transactions Report';
+  }else{
+    rows=[['Date','Category','Type','Amount','Description']];
+    state.expenseTxns.sort((a,b)=>a.date<b.date?1:-1).forEach(t=>rows.push([t.date,t.category,t.type,fmtPKR(t.amount),t.desc||'—']));
+    title='💸 Expense Transactions Report';
   }
+  showExportModal(title, rows, tab);
 }
 
-function showIOSExportModal(csv,filename){
-  // Show a modal with the data as text so iOS user can copy/share
-  let modal=document.getElementById('iosExportModal');
+function showExportModal(title, rows, tab){
+  let modal=document.getElementById('exportViewModal');
   if(!modal){
     modal=document.createElement('div');
-    modal.id='iosExportModal';
+    modal.id='exportViewModal';
     modal.className='modal-overlay';
-    modal.innerHTML=`
-      <div class="modal" style="max-width:95vw;">
-        <h3>📤 Save File on iPhone/iPad</h3>
-        <p style="font-size:.8rem;color:var(--text2);margin-bottom:10px;font-weight:600;">
-          iOS blocks auto-downloads. Tap <b>"Open File"</b> below — then tap <b>Share → Save to Files</b> to save it.
-        </p>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;">
-          <button id="iosOpenBtn" class="btn-confirm" style="width:100%;padding:12px;font-size:.88rem;">📂 Open File</button>
-          <button onclick="document.getElementById('iosExportModal').classList.remove('show')" class="btn-cancel" style="width:100%;padding:12px;">Close</button>
-        </div>
-      </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show');});
   }
-  // Update open button each time
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const btn=document.getElementById('iosOpenBtn');
-  btn.onclick=()=>{ window.open(url,'_blank'); };
+
+  // Build summary line
+  let summary='';
+  if(tab==='bank'){
+    const total=state.bankTxns.reduce((s,t)=>s+(t.type==='Credit'?parseFloat(t.amount):0),0);
+    const totalD=state.bankTxns.reduce((s,t)=>s+(t.type==='Debit'?parseFloat(t.amount):0),0);
+    summary=`Total Credits: ${fmtPKR(total)}  |  Total Debits: ${fmtPKR(totalD)}  |  Records: ${state.bankTxns.length}`;
+  }else{
+    const totalSp=state.categories.reduce((s,c)=>s+getSpent(c),0);
+    const mb=state.monthlyBudget||0;
+    summary=`Budget: ${fmtPKR(mb)}  |  Spent: ${fmtPKR(totalSp)}  |  Balance: ${fmtPKR(mb-totalSp)}  |  Records: ${state.expenseTxns.length}`;
+  }
+
+  // Build plain text for copying
+  const headers=rows[0];
+  const dataRows=rows.slice(1);
+  const colW=headers.map((h,ci)=>Math.max(h.length,...dataRows.map(r=>String(r[ci]||'').length),10));
+  const pad=(s,w)=>String(s||'').padEnd(w);
+  const sep=colW.map(w=>'-'.repeat(w+2)).join('+');
+  const hLine='| '+headers.map((h,i)=>pad(h,colW[i])).join(' | ')+' |';
+  const dLines=dataRows.map(r=>'| '+r.map((v,i)=>pad(v,colW[i])).join(' | ')+' |');
+  const plainText=[title,'',summary,'',sep,hLine,sep,...dLines,sep].join('\n');
+
+  // Build HTML table
+  const headerHTML=headers.map(h=>`<th>${h}</th>`).join('');
+  const bodyHTML=dataRows.map(r=>{
+    const isDebit=r[2]==='Debit'||r[2]==='Debit (Expense)';
+    return `<tr class="${isDebit?'debit':'credit'}">${r.map((v,i)=>`<td data-label="${headers[i]}">${v}</td>`).join('')}</tr>`;
+  }).join('');
+
+  modal.innerHTML=`
+    <div class="modal" style="max-width:98vw;width:98vw;padding:16px;border-radius:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;">
+        <h3 style="margin:0;font-size:.9rem;">${title}</h3>
+        <button onclick="document.getElementById('exportViewModal').classList.remove('show')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text3);">✕</button>
+      </div>
+      <div style="background:linear-gradient(135deg,#f5f0ff,#ede9fe);border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:.72rem;font-weight:700;color:var(--accent);line-height:1.7;">${summary}</div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <button onclick="copyExportText()" class="btn-confirm" style="flex:1;padding:10px;font-size:.8rem;border-radius:9px;min-width:120px;">📋 Copy All Data</button>
+        <button onclick="shareExportText()" class="btn-confirm" style="flex:1;padding:10px;font-size:.8rem;border-radius:9px;background:linear-gradient(135deg,#059669,#34d399);min-width:120px;">📤 Share / WhatsApp</button>
+      </div>
+
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:55vh;overflow-y:auto;border:1.5px solid var(--border);border-radius:10px;">
+        <table style="min-width:500px;width:100%;border-collapse:collapse;">
+          <thead><tr>${headerHTML}</tr></thead>
+          <tbody>${bodyHTML}</tbody>
+        </table>
+      </div>
+      <p style="font-size:.7rem;color:var(--text3);margin-top:10px;text-align:center;font-weight:600;">📋 Copy karo phir WhatsApp, Email ya Notes mein paste karo</p>
+
+      <textarea id="exportPlainText" style="position:absolute;left:-9999px;top:0;opacity:0;" readonly>${plainText}</textarea>
+    </div>`;
+
+  // Store for share
+  modal._plainText=plainText;
+  modal._title=title;
   modal.classList.add('show');
+}
+
+function copyExportText(){
+  const ta=document.getElementById('exportPlainText');
+  if(!ta)return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(()=>showToast('✅ Data copied! Paste karein jahan chahein','success')).catch(()=>fallbackCopy(ta));
+  }else{
+    fallbackCopy(ta);
+  }
+}
+
+function fallbackCopy(ta){
+  ta.style.position='fixed';ta.style.top='0';ta.style.left='0';ta.style.opacity='1';
+  ta.focus();ta.select();
+  try{document.execCommand('copy');showToast('✅ Data copied!','success');}
+  catch(e){showToast('Copy nahi hua, manually select karein','error');}
+  ta.style.position='absolute';ta.style.left='-9999px';ta.style.opacity='0';
+}
+
+function shareExportText(){
+  const modal=document.getElementById('exportViewModal');
+  const text=modal?modal._plainText:'';
+  const title=modal?modal._title:'Report';
+  if(navigator.share){
+    navigator.share({title:title,text:text}).catch(()=>{});
+  }else{
+    copyExportText();
+    showToast('Share nahi hua — data copy ho gaya, paste karein!','success');
+  }
 }
 
 function importExcel(tab,input){
