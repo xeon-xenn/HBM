@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#6c3ae0">
 <title>Household Budget Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 :root{
@@ -123,8 +124,8 @@ header{background:linear-gradient(135deg,#4c1d95,var(--accent) 45%,var(--accent2
 .group-header-left{display:flex;align-items:center;gap:10px;}
 .group-name{font-size:.92rem;font-weight:900;color:#fff;}
 .group-budget-badge{font-family:var(--num);font-size:.75rem;font-weight:700;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:3px 10px;color:#fff;}
-.group-chevron{font-size:.85rem;color:rgba(255,255,255,.8);transition:transform .3s;}
-.group-chevron.open{transform:rotate(180deg);}
+.group-chevron{font-size:1rem;color:rgba(255,255,255,.95);transition:transform .3s;font-weight:900;line-height:1;}
+.group-chevron.open{transform:rotate(45deg);}
 .group-stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;}
 .group-stat{padding:8px 12px;text-align:center;border-top:1px solid rgba(255,255,255,.15);}
 .group-stat:not(:last-child){border-right:1px solid rgba(255,255,255,.15);}
@@ -675,7 +676,7 @@ function renderGroupsContainer(){
           <span class="group-name">${esc(g.name)}</span>
           <span class="group-budget-badge">${fmtPKR(gb)}</span>
         </div>
-        <span class="group-chevron open" id="chev-${gi}">▼</span>
+        <span class="group-chevron open" id="chev-${gi}">＋</span>
       </div>
       <div class="group-stats-row ${cc}" style="opacity:.85;">
         <div class="group-stat"><div class="gs-label">Budget</div><div class="gs-val">${fmtPKR(gb)}</div></div>
@@ -692,6 +693,9 @@ function renderGroupsContainer(){
       </div>`;
     con.appendChild(div);
     renderCatGrid(gi);
+    // Set correct chevron symbol based on open state
+    const chev=div.querySelector(`#chev-${gi}`);
+    if(chev){ chev.textContent='－'; chev.classList.add('open'); }
   });
   updateMonthlySummaryBoxes();
 }
@@ -700,8 +704,15 @@ function toggleGroup(gi){
   const body=document.getElementById('gbody-'+gi);
   const chev=document.getElementById('chev-'+gi);
   const open=body.classList.contains('open');
-  if(open){ body.style.display='none'; body.classList.remove('open'); if(chev) chev.classList.remove('open'); }
-  else    { body.style.display='block'; body.classList.add('open');  if(chev) chev.classList.add('open'); }
+  if(open){
+    body.style.display='none';
+    body.classList.remove('open');
+    if(chev){ chev.classList.remove('open'); chev.textContent='＋'; }
+  } else {
+    body.style.display='block';
+    body.classList.add('open');
+    if(chev){ chev.classList.add('open'); chev.textContent='－'; }
+  }
 }
 
 function renderCatGrid(gi){
@@ -1216,22 +1227,10 @@ function importFile(tab, input){
     reader.onload=e=>{ processCSVImport(tab, e.target.result); input.value=''; };
     reader.readAsText(file,'UTF-8');
   } else {
-    // XLSX / XLS — use SheetJS via CDN
-    loadSheetJS(()=>{
-      reader.onload=e=>{ processXLSXImport(tab, e.target.result); input.value=''; };
-      reader.readAsBinaryString(file);
-    });
+    // XLSX/XLS — SheetJS already loaded in <head>
+    reader.onload=e=>{ processXLSXImport(tab, e.target.result); input.value=''; };
+    reader.readAsBinaryString(file);
   }
-}
-
-let _sheetJSLoaded=false;
-function loadSheetJS(cb){
-  if(_sheetJSLoaded||window.XLSX){ _sheetJSLoaded=true; cb(); return; }
-  const s=document.createElement('script');
-  s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-  s.onload=()=>{ _sheetJSLoaded=true; cb(); };
-  s.onerror=()=>showToast('Could not load XLSX library','error');
-  document.head.appendChild(s);
 }
 
 function processXLSXImport(tab, bstr){
