@@ -52,7 +52,7 @@ header{background:linear-gradient(135deg,#4c1d95,var(--accent) 45%,var(--accent2
 .tbtn.active{color:var(--accent);border-bottom-color:var(--accent);}
 
 .main{padding:16px;max-width:1400px;margin:0 auto;width:100%;}
-.tc{display:none;}.tc.active{display:block;}
+.tc display:none;}.tc.active{display:block;}
 
 /* ── STAT CARDS ── */
 .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;}
@@ -61,7 +61,6 @@ header{background:linear-gradient(135deg,#4c1d95,var(--accent) 45%,var(--accent2
 .sc.green{background:linear-gradient(135deg,#059669,#34d399);}
 .sc.red{background:linear-gradient(135deg,#e11d48,#fb7185);}
 .sc.cyan{background:linear-gradient(135deg,#0e7490,#22d3ee);}
-.sc.yellow{background:linear-gradient(135deg,#d97706,#fbbf24);}
 .sc.pink{background:linear-gradient(135deg,#be185d,#f472b6);}
 .slbl{font-size:.65rem;color:rgba(255,255,255,.85);font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
 .sval{font-family:var(--num);font-size:1.05rem;font-weight:700;color:#fff;line-height:1.2;}
@@ -298,7 +297,7 @@ tr.credit:hover{background:#dbeafe;}tr.debit:hover{background:#ffe4e6;}
         <div><div class="htitle">Household Budget Manager</div><div class="hsub">Personal Finance Tracker</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span class="mlabel" id="curMonth"></span>
+        <span class="mlabel" id="curMonth" style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.4);font-family:var(--num);"></span>
         <button class="blogout" onclick="doLogout()">⏻ Logout</button>
       </div>
     </header>
@@ -372,6 +371,8 @@ tr.credit:hover{background:#dbeafe;}tr.debit:hover{background:#ffe4e6;}
         <div class="exphdr">
           <h2>📂 Main Expense Categories & Sub-Categories</h2>
           <div style="display:flex;gap:7px;flex-wrap:wrap;">
+            <button class="bsm badd" style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);color:#4338ca;border-color:#a5b4fc;" onclick="openModal('addMainCatModal')">➕ Main Category</button>
+            <button class="bsm brem" style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b;border-color:#fca5a5;" onclick="showRemMainModal()">🗑️ Delete Main</button>
             <button class="bsm badd" onclick="openModal('addGrpModal')">➕ Add Sub-Category</button>
             <button class="bsm brem" onclick="showRemGrpModal()">🗑️ Delete Sub-Category</button>
           </div>
@@ -382,7 +383,7 @@ tr.credit:hover{background:#dbeafe;}tr.debit:hover{background:#ffe4e6;}
         <h3>➕ Add Expense Transaction</h3>
         <div class="frow">
           <div class="fg"><label>Date</label><input class="fi" type="date" id="e_date"></div>
-          <div class="fg"><label>Main Category</label><select class="fsel" id="e_main" onchange="fillSubCatSel()"><option value="Grocery">Grocery</option><option value="Monthly Expense">Monthly Expense</option><option value="Utilities">Utilities</option></select></div>
+          <div class="fg"><label>Main Category</label><select class="fsel" id="e_main" onchange="fillSubCatSel()"></select></div>
           <div class="fg"><label>Sub-Category</label><select class="fsel" id="e_cat"></select></div>
           <div class="fg"><label>Type</label><select class="fsel" id="e_type"><option value="Debit">Debit (Expense)</option><option value="Credit">Credit (Refund)</option></select></div>
           <div class="fg"><label>Amount (PKR)</label><input class="fi" type="number" id="e_amount" placeholder="0.00"></div>
@@ -406,17 +407,44 @@ tr.credit:hover{background:#dbeafe;}tr.debit:hover{background:#ffe4e6;}
   </div>
 </div>
 
+<div class="moverlay" id="addMainCatModal">
+  <div class="modal">
+    <h3>➕ Add New Main Category</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="opgrp">
+        <label>Main Category Name</label>
+        <input class="fi" type="text" id="newMainName" placeholder="e.g. Travel, Kids, Medical...">
+      </div>
+    </div>
+    <div class="mact">
+      <button class="bcan" onclick="closeModal('addMainCatModal')">Cancel</button>
+      <button class="bcon" onclick="addMainCategory()">Create Main Category</button>
+    </div>
+  </div>
+</div>
+
+<div class="moverlay" id="remMainModal">
+  <div class="modal">
+    <h3>🗑️ Delete Main Category</h3>
+    <p style="font-size:0.75rem;color:var(--red);margin-bottom:10px;">Warning: Deleting a Main category will remove its budgeted allocation context.</p>
+    <div class="opgrp">
+      <label>Choose Main Category to delete</label>
+      <select class="fsel" id="remMainSelect" style="width:100%;"></select>
+    </div>
+    <div class="mact">
+      <button class="bcan" onclick="closeModal('remMainModal')">Cancel</button>
+      <button class="bcon" style="background:var(--red);" onclick="removeMainCategory()">Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
 <div class="moverlay" id="addGrpModal">
   <div class="modal">
     <h3>➕ Add New Sub-Category Card</h3>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div class="opgrp">
         <label>Select Main Category Context</label>
-        <select class="fsel" id="newGrpMain" style="width:100%;">
-          <option value="Grocery">Grocery</option>
-          <option value="Monthly Expense">Monthly Expense</option>
-          <option value="Utilities">Utilities</option>
-        </select>
+        <select class="fsel" id="newGrpMain" style="width:100%;"></select>
       </div>
       <div class="opgrp">
         <label>Sub-Category Name</label>
@@ -462,6 +490,8 @@ tr.credit:hover{background:#dbeafe;}tr.debit:hover{background:#ffe4e6;}
 let S = {
   ob1: 0, ob2: 0, ob3: 0,
   mb: 0,
+  mainCategories: ["Grocery", "Monthly Expense", "Utilities"],
+  mainBudgets: {}, // Budget allocations mapped directly to main categories
   groups: [
     { name: "Kitchen Grocery", main: "Grocery", budget: 0, locked: false },
     { name: "House Rent", main: "Monthly Expense", budget: 0, locked: false },
@@ -480,6 +510,13 @@ window.onload = function() {
   if(local) {
     try { S = JSON.parse(local); } catch(e){}
   }
+  
+  // Base configuration system fallback integrity checker
+  if(!S.mainCategories || !S.mainCategories.length){
+    S.mainCategories = ["Grocery", "Monthly Expense", "Utilities"];
+  }
+  if(!S.mainBudgets) S.mainBudgets = {};
+  
   // Safe default system fallback integrity checker
   if(!S.groups || !S.groups.length){
     S.groups = [
@@ -488,20 +525,51 @@ window.onload = function() {
       { name: "Electricity Bill", main: "Utilities", budget: 0, locked: false }
     ];
   }
-  // Auto fix if older groups lack main mapping
   S.groups.forEach(g => { if(!g.main) g.main = "Monthly Expense"; });
   
-  const d = new Date();
-  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  document.getElementById('curMonth').textContent = `${months[d.getMonth()]} ${d.getFullYear()}`;
+  // Update Cycle Dates Header Layout System (27th to 27th logic)
+  updateBillingCycleHeader();
   
-  // Auto redirect inside viewports session checker logic
   if(sessionStorage.getItem('logged')==='1') {
     document.getElementById('loginPage').style.display='none';
     document.getElementById('app').style.display='flex';
     initApp();
   }
 };
+
+function updateBillingCycleHeader() {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth(); // 0-11
+  const currentDate = today.getDate();
+  
+  let startMonth, startYear, endMonth, endYear;
+  
+  if (currentDate >= 27) {
+    // Current cycle starts on 27th of this month, ends on 27th of next month
+    startMonth = currentMonth;
+    startYear = currentYear;
+    
+    let nextDate = new Date(currentYear, currentMonth + 1, 1);
+    endMonth = nextDate.getMonth();
+    endYear = nextDate.getFullYear();
+  } else {
+    // Current cycle started on 27th of last month, ends on 27th of this month
+    let prevDate = new Date(currentYear, currentMonth - 1, 1);
+    startMonth = prevDate.getMonth();
+    startYear = prevDate.getFullYear();
+    
+    endMonth = currentMonth;
+    endYear = currentYear;
+  }
+  
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  
+  const startStr = `${monthNames[startMonth]} 27, ${startYear}`;
+  const endStr = `${monthNames[endMonth]} 27, ${endYear}`;
+  
+  document.getElementById('curMonth').textContent = `${startStr} to ${endStr}`;
+}
 
 function doLogin() {
   if(document.getElementById('pwdInput').value === PWD) {
@@ -525,13 +593,13 @@ function initApp() {
   document.getElementById('ms_inp').value = S.mb || '';
   document.getElementById('ms_alloc').textContent = `PKR ${(S.mb||0).toLocaleString()}`;
   
-  // Standard default date builders
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('b_date').value = today;
   document.getElementById('e_date').value = today;
   
   renderBankTxns();
   updateBankCards();
+  refreshMainDropdowns();
   renderGroups();
   fillSubCatSel();
   renderExpTxns();
@@ -563,15 +631,23 @@ function onMBInput(val) {
   saveState(); updateExpSummary(); updateDashboard();
 }
 
-function updateBankCards() {
-  let m1=S.ob1, m2=S.ob2, m3=S.ob3;
+function getBankLiveBalance(bankName, openingBalance) {
+  let bal = openingBalance;
   S.bankTxns.forEach(t => {
-    let amt = parseFloat(t.amount)||0;
-    if(t.bank==='MBL-DMC') m1 += (t.type==='Credit'? amt : -amt);
-    if(t.bank==='MBL-KC')  m2 += (t.type==='Credit'? amt : -amt);
-    if(t.bank==='UBL-DMC') m3 += (t.type==='Credit'? amt : -amt);
+    if(t.bank === bankName) {
+      let amt = parseFloat(t.amount)||0;
+      bal += (t.type==='Credit'? amt : -amt);
+    }
   });
+  return bal;
+}
+
+function updateBankCards() {
+  let m1 = getBankLiveBalance('MBL-DMC', S.ob1);
+  let m2 = getBankLiveBalance('MBL-KC', S.ob2);
+  let m3 = getBankLiveBalance('UBL-DMC', S.ob3);
   const tot = m1+m2+m3;
+  
   document.getElementById('bankCards').innerHTML = `
     <div class="bc mbl-dmc"><div class="bclbl">MBL-DMC</div><div class="bcval">PKR ${m1.toLocaleString()}</div></div>
     <div class="bc mbl-kc"><div class="bclbl">MBL-KC</div><div class="bcval">PKR ${m2.toLocaleString()}</div></div>
@@ -580,9 +656,14 @@ function updateBankCards() {
   `;
 }
 
-function updateExpSummary() {
+function getTotalExpensesOutflow() {
   let spent = 0;
   S.expTxns.forEach(t => { spent += (t.type==='Debit'? t.amount : -t.amount); });
+  return spent;
+}
+
+function updateExpSummary() {
+  let spent = getTotalExpensesOutflow();
   const rem = S.mb - spent;
   document.getElementById('ms_spent').textContent = `PKR ${spent.toLocaleString()}`;
   
@@ -598,40 +679,101 @@ function updateExpSummary() {
   }
 }
 
-/* ── GROUPS ENGINE ── */
+/* ── MAIN & SUB-GROUPS ENGINE ── */
+function refreshMainDropdowns() {
+  // 1. Transaction layout Main category drop-down selector
+  const eMain = document.getElementById('e_main');
+  eMain.innerHTML = '';
+  S.mainCategories.forEach(m => { eMain.innerHTML += `<option value="${m}">${m}</option>`; });
+  
+  // 2. Add sub-category dynamic main selectors
+  const newGrpMain = document.getElementById('newGrpMain');
+  newGrpMain.innerHTML = '';
+  S.mainCategories.forEach(m => { newGrpMain.innerHTML += `<option value="${m}">${m}</option>`; });
+  
+  // 3. Remove main categories configuration modal
+  const remMainSelect = document.getElementById('remMainSelect');
+  remMainSelect.innerHTML = '';
+  S.mainCategories.forEach(m => { remMainSelect.innerHTML += `<option value="${m}">${m}</option>`; });
+}
+
+function addMainCategory() {
+  const name = document.getElementById('newMainName').value.trim();
+  if(!name) return;
+  if(S.mainCategories.some(x => x.toLowerCase() === name.toLowerCase())) {
+    showToast('Main category already exists!','error'); return;
+  }
+  S.mainCategories.push(name);
+  S.mainBudgets[name] = 0;
+  document.getElementById('newMainName').value = '';
+  saveState(); refreshMainDropdowns(); renderGroups(); fillSubCatSel(); closeModal('addMainCatModal');
+  showToast('Main category registered successfully.','success');
+}
+
+function showRemMainModal() {
+  refreshMainDropdowns();
+  openModal('remMainModal');
+}
+
+function removeMainCategory() {
+  const name = document.getElementById('remMainSelect').value;
+  if(!name) return;
+  S.mainCategories = S.mainCategories.filter(x => x !== name);
+  if(S.mainBudgets[name] !== undefined) delete S.mainBudgets[name];
+  // Re-assign remaining matching items safely
+  S.groups.forEach(g => { if(g.main === name) g.main = "Monthly Expense"; });
+  S.expTxns.forEach(t => { if(t.main === name) t.main = "Monthly Expense"; });
+  
+  saveState(); refreshMainDropdowns(); renderGroups(); fillSubCatSel(); renderExpTxns(); closeModal('remMainModal');
+  showToast('Main category detached permanently','success');
+}
+
+function updateMainCategoryBudget(mainCat, val) {
+  S.mainBudgets[mainCat] = parseFloat(val) || 0;
+  saveState();
+  // Safe update summary values without losing element focus mechanics
+  let spent = getTotalExpensesOutflow();
+  document.getElementById('ms_spent').textContent = `PKR ${spent.toLocaleString()}`;
+  document.getElementById('ms_rem').textContent = `PKR ${(S.mb - spent).toLocaleString()}`;
+}
+
 function renderGroups() {
   const container = document.getElementById('grpContainer');
   container.innerHTML = '';
   
-  const mainCategories = ["Grocery", "Monthly Expense", "Utilities"];
-  
-  mainCategories.forEach((mainCat, index) => {
+  S.mainCategories.forEach((mainCat, index) => {
     const mainGrp = S.groups.filter(g => g.main === mainCat);
     
-    let allocated = 0, spent = 0;
+    let subAllocated = 0, spent = 0;
     mainGrp.forEach(g => {
-      allocated += (g.budget || 0);
-      S.expTxns.forEach(t => {
-        if(t.grp === g.name) spent += (t.type==='Debit'? t.amount : -t.amount);
-      });
+      subAllocated += (g.budget || 0);
     });
     
-    const rem = allocated - spent;
+    S.expTxns.forEach(t => {
+      if(t.main === mainCat) spent += (t.type==='Debit'? t.amount : -t.amount);
+    });
     
-    // UI section per Main category
+    let mainAllocated = S.mainBudgets[mainCat] || 0;
+    const rem = mainAllocated - spent;
+    
+    let colorClass = `gc${index % 7}`;
     let sec = document.createElement('div');
     sec.className = `gsec`;
     sec.innerHTML = `
-      <div class="ghdr gc${index}" onclick="toggleGBody('gbody_${index}', this)">
+      <div class="ghdr ${colorClass}" onclick="toggleGBody('gbody_${index}', this)">
         <div class="ghdrl">
           <span class="gchev open">▼</span>
-          <span class="gname">${mainCat}</span>
+          <span class="gname">${mainCat} Context</span>
         </div>
         <span class="gbadge">Sub-Cards: ${mainGrp.length}</span>
       </div>
-      <div class="gstats gc${index}">
-        <div class="gstat"><div class="gslbl">Allocated</div><div class="gsval">PKR ${allocated.toLocaleString()}</div></div>
-        <div class="gstat"><div class="gslbl">Spent</div><div class="gsval">PKR ${spent.toLocaleString()}</div></div>
+      <div style="background:#fff; padding:12px 14px 2px; border-bottom:1px solid rgba(212,197,249,.4);">
+         <div class="calloclbl" style="color:var(--accent);">Main category Budget Input</div>
+         <input class="cbinput" type="number" value="${mainAllocated||''}" placeholder="0.00 Allocation" style="width:100%; text-align:left; font-size:0.9rem; padding:8px 11px;" oninput="updateMainCategoryBudget('${mainCat}', this.value)">
+      </div>
+      <div class="gstats ${colorClass}">
+        <div class="gstat"><div class="gslbl">Main Budget</div><div class="gsval">PKR ${mainAllocated.toLocaleString()}</div></div>
+        <div class="gstat"><div class="gslbl">Total Spent</div><div class="gsval">PKR ${spent.toLocaleString()}</div></div>
         <div class="gstat"><div class="gslbl">Remaining</div><div class="gsval">PKR ${rem.toLocaleString()}</div></div>
       </div>
       <div class="gbody open" id="gbody_${index}">
@@ -646,7 +788,7 @@ function renderGroups() {
     } else {
       mainGrp.forEach(g => {
         let gspent = 0;
-        S.expTxns.forEach(t => { if(t.grp === g.name) gspent += (t.type==='Debit'? t.amount : -t.amount); });
+        S.expTxns.forEach(t => { if(t.grp === g.name && t.main === mainCat) gspent += (t.type==='Debit'? t.amount : -t.amount); });
         const grem = (g.budget||0) - gspent;
         const pct = g.budget ? Math.min(100, (gspent/g.budget)*100) : 0;
         
@@ -657,14 +799,14 @@ function renderGroups() {
             <span class="ccatname">${g.name}</span>
             <button class="blck ${g.locked?'locked':''}" onclick="toggleLockGroup('${g.name}')">${g.locked?'🔒':'🔓'}</button>
           </div>
-          <div class="calloclbl">Allocated Card Budget</div>
+          <div class="calloclbl">Sub-Card Limit</div>
           <input class="cbinput" type="number" value="${g.budget||''}" placeholder="0.00" ${g.locked?'disabled':''} oninput="updateGroupBudget('${g.name}', this.value)">
           <div class="cbar">
             <div class="cbar-s" style="width: ${pct}%"></div>
             <div class="cbar-r"></div>
           </div>
           <div class="c3cols">
-            <div class="ccol ca"><div class="cclbl la">Alloc</div><div class="ccval va">${(g.budget||0).toLocaleString()}</div></div>
+            <div class="ccol ca"><div class="cclbl la">Limit</div><div class="ccval va">${(g.budget||0).toLocaleString()}</div></div>
             <div class="ccol cs"><div class="cclbl ls">Spent</div><div class="ccval vs">${gspent.toLocaleString()}</div></div>
             <div class="ccol ${grem<0?'cbr':'cbg'}">
               <div class="cclbl ${grem<0?'lbr':'lbg'}">${grem<0?'Over':'Rem'}</div>
@@ -695,12 +837,9 @@ function updateGroupBudget(name, val) {
   if(g && !g.locked) {
     g.budget = parseFloat(val) || 0;
     saveState();
-    // Soft calculations refresh without breaking layout focus inputs
-    let spent = 0;
-    S.expTxns.forEach(t => { spent += (t.type==='Debit'? t.amount : -t.amount); });
+    let spent = getTotalExpensesOutflow();
     document.getElementById('ms_spent').textContent = `PKR ${spent.toLocaleString()}`;
-    const rem = S.mb - spent;
-    document.getElementById('ms_rem').textContent = `PKR ${rem.toLocaleString()}`;
+    document.getElementById('ms_rem').textContent = `PKR ${(S.mb - spent).toLocaleString()}`;
   }
 }
 
@@ -749,7 +888,7 @@ function fillSubCatSel() {
   });
 }
 
-/* ── LOGIC OPERATIONS INTERFACE TRANSACTIONS ── */
+/* ── TRANSACTION FORM HANDLERS ── */
 function addBankTxn() {
   const date = document.getElementById('b_date').value;
   const bank = document.getElementById('b_bank').value;
@@ -842,30 +981,28 @@ function renderExpTxns(q='') {
 
 /* ── CHARTS INTERFACES & DASHBOARD ENGINE ── */
 function updateDashboard() {
-  let openTot = S.ob1 + S.ob2 + S.ob3;
-  let bankSpent = 0, bankCred = 0;
-  S.bankTxns.forEach(t => { if(t.type==='Credit') bankCred+=t.amount; else bankSpent+=t.amount; });
-  let currentBankBal = openTot + bankCred - bankSpent;
+  let m1 = getBankLiveBalance('MBL-DMC', S.ob1);
+  let m2 = getBankLiveBalance('MBL-KC', S.ob2);
+  let m3 = getBankLiveBalance('UBL-DMC', S.ob3);
+  let totalSpentExpenses = getTotalExpensesOutflow();
   
-  let totalExp = 0;
-  S.expTxns.forEach(t => { totalExp += (t.type==='Debit'? t.amount : -t.amount); });
-  
+  // Dashboard Balance Cards (Original layout restored)
   const dCards = document.getElementById('dashCards');
   dCards.innerHTML = `
-    <div class="sc blue"><div class="slbl">Initial Starting Cash</div><div class="sval">PKR ${openTot.toLocaleString()}</div><div class="ssub">Opening Balances Base</div></div>
-    <div class="sc green"><div class="slbl">Net Wallet Cash Balance</div><div class="sval">PKR ${currentBankBal.toLocaleString()}</div><div class="ssub">Total Live Bank Funds</div></div>
-    <div class="sc red"><div class="slbl">Expenses Outflow</div><div class="sval">PKR ${totalExp.toLocaleString()}</div><div class="ssub">Total Spent Volume</div></div>
-    <div class="sc cyan"><div class="slbl">Allocated Budget Limit</div><div class="sval">PKR ${(S.mb||0).toLocaleString()}</div><div class="ssub">Max Limit Bar Threshold</div></div>
+    <div class="sc blue"><div class="slbl">MBL-DMC Current Balance</div><div class="sval">PKR ${m1.toLocaleString()}</div><div class="ssub">Live Wallet Fund</div></div>
+    <div class="sc pink"><div class="slbl">MBL-KC Current Balance</div><div class="sval">PKR ${m2.toLocaleString()}</div><div class="ssub">Live Wallet Fund</div></div>
+    <div class="sc cyan"><div class="slbl">UBL-DMC Current Balance</div><div class="sval">PKR ${m3.toLocaleString()}</div><div class="ssub">Live Wallet Fund</div></div>
+    <div class="sc red"><div class="slbl">Total Monthly Expenses</div><div class="sval">PKR ${totalSpentExpenses.toLocaleString()}</div><div class="ssub">Accumulated Outflow Volume</div></div>
   `;
   
-  // Chart Map builders logic
-  let map = { "Grocery": 0, "Monthly Expense": 0, "Utilities": 0 };
+  // Dynamic map dataset computation
+  let map = {};
+  S.mainCategories.forEach(m => { map[m] = 0; });
   S.expTxns.forEach(t => {
     let m = t.main || "Monthly Expense";
     if(map[m] !== undefined) map[m] += (t.type==='Debit'? t.amount : -t.amount);
   });
   
-  // Dynamic Charts rendering triggers
   setTimeout(() => {
     if(pieChart) pieChart.destroy();
     if(barChart) barChart.destroy();
@@ -877,18 +1014,10 @@ function updateDashboard() {
         labels: Object.keys(map),
         datasets: [{
           data: Object.values(map),
-          backgroundColor: ['#9b5de5', '#0e7490', '#d97706']
+          backgroundColor: ['#9b5de5', '#0e7490', '#d97706', '#059669', '#be185d', '#6366f1']
         }]
       },
       options: { responsive: true, maintainAspectRatio: false }
-    });
-    
-    let m1=S.ob1, m2=S.ob2, m3=S.ob3;
-    S.bankTxns.forEach(t => {
-      let amt = t.amount;
-      if(t.bank==='MBL-DMC') m1 += (t.type==='Credit'? amt : -amt);
-      if(t.bank==='MBL-KC')  m2 += (t.type==='Credit'? amt : -amt);
-      if(t.bank==='UBL-DMC') m3 += (t.type==='Credit'? amt : -amt);
     });
     
     const ctx2 = document.getElementById('barChart').getContext('2d');
@@ -897,7 +1026,7 @@ function updateDashboard() {
       data: {
         labels: ['MBL-DMC', 'MBL-KC', 'UBL-DMC'],
         datasets: [{
-          label: 'PKR Balances',
+          label: 'PKR Current Balances',
           data: [m1, m2, m3],
           backgroundColor: ['#6366f1', '#ec4899', '#22d3ee']
         }]
@@ -914,13 +1043,12 @@ function getAI() {
   btn.disabled = true;
   
   setTimeout(() => {
-    let totalSpent = 0;
-    let mainMap = { "Grocery": 0, "Monthly Expense": 0, "Utilities": 0 };
+    let totalSpent = getTotalExpensesOutflow();
+    let map = {};
+    S.mainCategories.forEach(m => { map[m] = 0; });
     S.expTxns.forEach(t => {
-      let val = (t.type==='Debit'? t.amount : -t.amount);
-      totalSpent += val;
       let m = t.main || "Monthly Expense";
-      if(mainMap[m] !== undefined) mainMap[m] += val;
+      if(map[m] !== undefined) map[m] += (t.type==='Debit'? t.amount : -t.amount);
     });
     
     let cash = S.ob1 + S.ob2 + S.ob3;
@@ -928,31 +1056,30 @@ function getAI() {
     
     let highestCat = "None";
     let maxV = -1;
-    for(let k in mainMap) { if(mainMap[k] > maxV) { maxV = mainMap[k]; highestCat = k; } }
+    for(let k in map) { if(map[k] > maxV) { maxV = map[k]; highestCat = k; } }
     
     let budgetRatio = S.mb ? (totalSpent / S.mb) * 100 : 0;
     
-    // Generator Insight strings contextual matching metrics
-    let text = `<strong>Financial Diagnostic Report:</strong><br><br>`;
+    let text = `<strong>Financial Diagnostic Cycle Report:</strong><br><br>`;
     if(totalSpent === 0) {
-      text += `✨ System has detected perfect initial conditions. No expense rows have been logged for this period yet. Ready to distribute allocation thresholds. Keep tracking!`;
+      text += `✨ No expense transactions logs found inside the current active 27-to-27 timeline cycle window. System metrics optimized. Ready for allocations!`;
     } else {
-      text += `📊 You have consumed <strong>${budgetRatio.toFixed(1)}%</strong> of your total defined Monthly Budget limit. <br>`;
-      text += `🔥 Your highest spending volume sector is concentrated under <strong>${highestCat}</strong> with an aggregate volume of PKR ${maxV.toLocaleString()}. <br><br>`;
+      text += `📊 You have spent <strong>PKR ${totalSpent.toLocaleString()}</strong> which accounts for <strong>${budgetRatio.toFixed(1)}%</strong> of your specified global target budget scope limit.<br>`;
+      if(highestCat !== "None" && maxV > 0) {
+        text += `🔥 Outflow peaks detected under Main Sector <strong>${highestCat}</strong> carrying PKR ${maxV.toLocaleString()}.<br><br>`;
+      }
       
       if(budgetRatio > 90) {
-        text += `⚠️ <strong>CRITICAL THRESHOLD REACHED:</strong> Budget consumption velocity is unsustainable. AI recommends halting discretionary transactions immediately under "${highestCat}" and preserving remaining cash reserves of PKR ${cash.toLocaleString()}.`;
-      } else if(budgetRatio > 60) {
-        text += `💡 <strong>ADVISORY MODERATE CONSUMPTION:</strong> Outflows are steady but high. Try optimizing utility parameters or limiting bulk procurement cards for groceries to keep reserves inside green parameters.`;
+        text += `⚠️ <strong>CRITICAL LEVEL WARNING:</strong> Budget speed limits surpassed. Restrict further secondary card logs under ${highestCat} immediately to safe-keep your primary bank reserves.`;
       } else {
-        text += `✅ <strong>EFFICIENT STATUS ACHIEVED:</strong> Financial status parameters show strong structural integrity. Your consumption acceleration matches target models. Balanced margins preserved!`;
+        text += `✅ <strong>EFFICIENT STATUS TRACKING:</strong> Structural ledger allocations are behaving perfectly. Your wallet distributions are aligned with structural financial designs.`;
       }
     }
     
     document.getElementById('aiText').innerHTML = text;
     btn.innerHTML = '✨ Analyze My Budget';
     btn.disabled = false;
-    showToast('AI analysis completed locally','success');
+    showToast('AI cycle metrics computed successfully','success');
   }, 1200);
 }
 
@@ -990,25 +1117,20 @@ function importXLSX(tab, input) {
   reader.onload = function(e) {
     const text = e.target.result;
     const lines = text.split(/\r?\n/);
-    if(lines.length <= 1) { showToast('No rows found in uploaded template','error'); return; }
+    if(lines.length <= 1) { showToast('No data records found inside template','error'); return; }
     
-    // Extract headers
     const headers = lines[0].split(',').map(h => h.trim().replace(/["']/g, ''));
     let importedCount = 0;
     
     for(let i=1; i<lines.length; i++) {
       if(!lines[i].trim()) continue;
       
-      // Handle simple CSV/XLSX text fallback splits regex
       const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/["']/g, ''));
-      
       let row = {};
       headers.forEach((h, idx) => { row[h] = cols[idx]; });
       
-      // Auto-extract and fix Date calculation anomalies (Handles both Excel serial codes and date strings)
       let rawDate = row['Date'] || row['date'] || new Date().toISOString().split('T')[0];
       if(/^\d+$/.test(rawDate)) {
-        // Full protection repair mechanics for excel serial dates format codes (e.g. 34573)
         let serial = parseInt(rawDate, 10);
         let utc_days  = serial - 25569;
         let utc_value = utc_days * 86400;
@@ -1030,7 +1152,10 @@ function importXLSX(tab, input) {
         let main = row['MainCategory'] || row['maincategory'] || 'Monthly Expense';
         let grp = row['SubCategory'] || row['subcategory'] || row['Group'] || row['grp'] || 'Kitchen Grocery';
         
-        // Auto register subcategory card context if it doesn't exist natively
+        if(!S.mainCategories.includes(main)) {
+          S.mainCategories.push(main);
+          S.mainBudgets[main] = 0;
+        }
         if(!S.groups.some(g => g.name.toLowerCase() === grp.toLowerCase())) {
           S.groups.push({ name: grp, main: main, budget: 0, locked: false });
         }
@@ -1040,11 +1165,12 @@ function importXLSX(tab, input) {
     }
     
     saveState();
+    refreshMainDropdowns();
     if(tab==='bank') { renderBankTxns(); updateBankCards(); } 
     else { renderExpTxns(); renderGroups(); fillSubCatSel(); }
     updateDashboard();
-    input.value = ''; // clear input cache target descriptor
-    showToast(`✅ Successfully parsed & imported ${importedCount} transaction rows!`, 'success');
+    input.value = '';
+    showToast(`✅ Successfully imported ${importedCount} records!`, 'success');
   };
   
   reader.readAsText(file);
