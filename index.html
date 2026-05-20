@@ -661,12 +661,18 @@ function catSpent(gName,cat){
     .reduce((s,t)=>s+(t.type==='Debit'?(parseFloat(t.amount)||0):-(parseFloat(t.amount)||0)),0);
 }
 
+// Track which groups are open by name (persists across re-renders)
+const _groupOpenState = {};
+
 function renderGroupsContainer(){
   const con = document.getElementById('groupsContainer');
   con.innerHTML='';
   S.groups.forEach((g,gi)=>{
     const cc=GC[gi%GC.length], icon=ICONS[gi%ICONS.length];
     const gb=parseFloat(g.budget)||0, gs=gSpent(g), gbal=gb-gs;
+    // Default: first render all open; preserve state on re-render
+    if(_groupOpenState[g.name]===undefined) _groupOpenState[g.name]=true;
+    const isOpen=_groupOpenState[g.name];
     const div=document.createElement('div');
     div.className='group-section';
     div.innerHTML=`
@@ -676,14 +682,14 @@ function renderGroupsContainer(){
           <span class="group-name">${esc(g.name)}</span>
           <span class="group-budget-badge">${fmtPKR(gb)}</span>
         </div>
-        <span class="group-chevron open" id="chev-${gi}">＋</span>
+        <span class="group-chevron${isOpen?' open':''}" id="chev-${gi}">${isOpen?'－':'＋'}</span>
       </div>
       <div class="group-stats-row ${cc}" style="opacity:.85;">
         <div class="group-stat"><div class="gs-label">Budget</div><div class="gs-val">${fmtPKR(gb)}</div></div>
         <div class="group-stat"><div class="gs-label">Spent</div><div class="gs-val">${fmtPKR(gs)}</div></div>
         <div class="group-stat"><div class="gs-label">Balance</div><div class="gs-val">${fmtPKR(gbal)}</div></div>
       </div>
-      <div class="group-body open" id="gbody-${gi}">
+      <div class="group-body${isOpen?' open':''}" id="gbody-${gi}" style="display:${isOpen?'block':'none'}">
         <div class="group-body-actions">
           <button class="btn-small btn-add" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1d4ed8;border:1.5px solid #bfdbfe;" onclick="openEditGroupBudget(${gi})">💰 Set Budget</button>
           <button class="btn-small btn-add" onclick="openAddCatForGroup('${esc(g.name)}')">➕ Sub-Category</button>
@@ -693,24 +699,21 @@ function renderGroupsContainer(){
       </div>`;
     con.appendChild(div);
     renderCatGrid(gi);
-    // Set correct chevron symbol based on open state
-    const chev=div.querySelector(`#chev-${gi}`);
-    if(chev){ chev.textContent='－'; chev.classList.add('open'); }
   });
   updateMonthlySummaryBoxes();
 }
 
 function toggleGroup(gi){
+  const g=S.groups[gi]; if(!g) return;
   const body=document.getElementById('gbody-'+gi);
   const chev=document.getElementById('chev-'+gi);
-  const open=body.classList.contains('open');
+  const open=_groupOpenState[g.name];
+  _groupOpenState[g.name]=!open;
   if(open){
-    body.style.display='none';
-    body.classList.remove('open');
+    body.style.display='none'; body.classList.remove('open');
     if(chev){ chev.classList.remove('open'); chev.textContent='＋'; }
   } else {
-    body.style.display='block';
-    body.classList.add('open');
+    body.style.display='block'; body.classList.add('open');
     if(chev){ chev.classList.add('open'); chev.textContent='－'; }
   }
 }
@@ -800,6 +803,7 @@ function addGroup(){
   if(!name){ showToast('Please enter a group name','error'); return; }
   if(S.groups.find(g=>g.name===name)){ showToast('Group already exists','error'); return; }
   S.groups.push({name,budget,categories:[],catBudgets:{},lockedBudgets:{}});
+  S.groups.sort((a,b)=>a.name.localeCompare(b.name));
   saveState(); renderGroupsContainer(); fillGroupDropdowns();
   closeModal('addGroupModal');
   showToast(`"${name}" group added!`,'success');
@@ -1287,25 +1291,48 @@ function importRowsGeneric(tab, headers, dataRows){
       const bank=String(obj['bank']||'MBL-DMC').trim();
       S.bankTxns.push({id:uid(),date:rawDate,bank,type:txnType,amount,desc});
     } else {
-      const grp=String(obj['group']||obj['group name']||obj['groupname']||S.groups[0]?.name||'Monthly Expense').trim();
-      const cat=String(obj['sub-category']||obj['subcategory']||obj['category']||obj['sub category']||'').trim();
-      if(grp&&!S.groups.find(g=>g.name===grp)){
-        S.groups.push({name:grp,budget:0,categories:[],catBudgets:{},lockedBudgets:{}});
+      // Try to match group — exact first, then case-insensitive, then default
+      let grpRaw=String(obj['group']||obj['group name']||obj['groupname']||'').trim();
+      let cat=String(obj['sub-category']||obj['subcategory']||obj['category']||obj['sub category']||'').trim();
+
+      // Find matching group (case-insensitive)
+      let g=S.groups.find(x=>x.name===grpRaw)
+           || S.groups.find(x=>x.name.toLowerCase()===grpRaw.toLowerCase());
+
+      // If no match but we have a cat, try to find which group owns that cat
+      if(!g && cat){
+        g=S.groups.find(x=>x.categories.includes(cat))
+         || S.groups.find(x=>x.categories.map(c=>c.toLowerCase()).includes(cat.toLowerCase()));
       }
-      const g=S.groups.find(g=>g.name===grp);
-      if(g&&cat&&!g.categories.includes(cat)){
-        g.categories.push(cat);
-        g.categories.sort((a,b)=>a.localeCompare(b));
+
+      // Still no match — create new group or use first
+      if(!g){
+        if(grpRaw){
+          S.groups.push({name:grpRaw,budget:0,categories:[],catBudgets:{},lockedBudgets:{}});
+          S.groups.sort((a,b)=>a.name.localeCompare(b.name));
+          g=S.groups.find(x=>x.name===grpRaw);
+        } else {
+          g=S.groups[0];
+        }
       }
+
+      const grp=g.name;
+      // Normalize cat casing if found in group
+      if(cat){
+        const existing=g.categories.find(c=>c.toLowerCase()===cat.toLowerCase());
+        if(existing) cat=existing;
+        else { g.categories.push(cat); g.categories.sort((a,b)=>a.localeCompare(b)); }
+      }
+
       S.expenseTxns.push({id:uid(),date:rawDate,groupName:grp,category:cat,type:txnType,amount,desc});
     }
     imported++;
   }
 
-  if(!imported){ showToast('No valid rows found. Check column headers match template.','error'); return; }
+  if(!imported){ showToast('No valid rows found. Check column headers.','error'); return; }
   saveState();
   if(tab==='bank'){ renderBankTxns(); updateBankBalanceCards(); }
-  else { renderExpenseTxns(); renderGroupsContainer(); fillGroupDropdowns(); }
+  else { renderGroupsContainer(); renderExpenseTxns(); fillGroupDropdowns(); }
   updateDashboard();
   showToast(`✅ ${imported} records imported!`,'success');
 }
